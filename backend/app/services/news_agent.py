@@ -10,7 +10,6 @@ from openai import (
 )
 from app.config import settings
 from app.schemas.news_analysis import NewsAnalysis
-
 client = OpenAI(
     api_key=settings.LLM_API_KEY, base_url=settings.LLM_BASE_URL, max_retries=0
 )

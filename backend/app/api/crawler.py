@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.database.connection import SessionLocal
 from app.database.dependencies import get_db
-from app.scrapers.news_scraper import main
 from app.services.crawler_service import (
     create_crawler_task,
     start_crawler_task,
     update_crawler_task,
     fail_crawler_task,
+)
+from app.services.universal_crawler_service import (
+    crawl_and_save_enabled_sources,
 )
 from app.models.crawler_task import CrawlerTask
 
@@ -30,29 +32,38 @@ crawler_status = {
 
 
 def run_crawler_task(task_id: int):
-    """后台执行新闻采集任务"""
+    """后台执行多来源新闻采集任务"""
 
     db = SessionLocal()
 
     try:
         start_crawler_task(db, task_id)
 
-        result = main()
+        # 执行多来源采集、清洗、过滤、去重和入库
+        result = crawl_and_save_enabled_sources(db)
 
+        # 更新数据库中的任务记录
         update_crawler_task(db, task_id, result)
 
+        # 更新内存中的最近一次采集状态
         crawler_status.update(
             {
                 "last_run": datetime.now().isoformat(),
-                "total": result["total"],
-                "saved": result["saved"],
-                "skipped": result["skipped"],
+                "total": result["total_fetched"],
+                "saved": result["saved_count"],
+                "skipped": (
+                    result["invalid_count"]
+                    + result["filtered_count"]
+                    + result["batch_duplicate_count"]
+                    + result["exists_count"]
+                ),
                 "message": "采集完成",
             }
         )
 
     except Exception as e:
         db.rollback()
+
         fail_crawler_task(db, task_id, str(e))
 
         crawler_status["message"] = f"采集失败：{str(e)}"
@@ -66,7 +77,7 @@ def run_crawler_task(task_id: int):
 
 @router.post("/run")
 def start_crawler(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """手动启动新闻采集"""
+    """手动启动多来源新闻采集"""
 
     with crawler_lock:
         if crawler_status["running"]:
@@ -85,6 +96,7 @@ def start_crawler(background_tasks: BackgroundTasks, db: Session = Depends(get_d
 @router.get("/status")
 def get_crawler_status():
     """获取最近一次采集状态"""
+
     return crawler_status
 
 

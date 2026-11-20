@@ -1,7 +1,7 @@
 
 from scrapling.fetchers import Fetcher
 from urllib.parse import urljoin
-from services.news_cleaner import (
+from backend.app.processors.news_cleaner import (
     process_news,
     remove_duplicate_news
 )

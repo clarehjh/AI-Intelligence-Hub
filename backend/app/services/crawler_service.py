@@ -26,24 +26,52 @@ def create_crawler_task(db: Session) -> CrawlerTask:
     return task
 
 
-def update_crawler_task(db: Session, task_id: int, result: dict) -> CrawlerTask | None:
+
+def update_crawler_task(
+    db: Session,
+    task_id: int,
+    result: dict
+) -> CrawlerTask | None:
     """更新采集任务结果"""
 
-    task = db.query(CrawlerTask).filter(CrawlerTask.id == task_id).first()
+    task = db.query(CrawlerTask).filter(
+        CrawlerTask.id == task_id
+    ).first()
 
     if not task:
         return None
 
     task.status = "success"
-    task.total = result["total"]
-    task.saved = result["saved"]
-    task.skipped = result["skipped"]
+
+    # 采集总数
+    task.total = result.get("total_fetched", 0)
+
+    # 成功入库数量
+    task.saved = result.get("saved_count", 0)
+
+    # 跳过数量：无效、无关、重复、数据库已存在
+    task.skipped = (
+        result.get("invalid_count", 0)
+        + result.get("filtered_count", 0)
+        + result.get("batch_duplicate_count", 0)
+        + result.get("exists_count", 0)
+    )
+
+    # 记录部分保存失败的情况
+    failed_count = result.get("failed_count", 0)
+
+    if failed_count:
+        task.error_message = f"有 {failed_count} 条新闻保存失败"
+    else:
+        task.error_message = None
+
     task.finished_at = datetime.now()
 
     db.commit()
     db.refresh(task)
 
     return task
+
 
 
 def fail_crawler_task(

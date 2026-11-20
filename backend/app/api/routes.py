@@ -21,7 +21,12 @@ from sqlalchemy.orm import Session
 from app.schemas.news import NewsCreate, NewsResponse, NewsUpdate
 from app.models.news import News
 from app.database.dependencies import get_db
-from app.services.news_analysis_service import analyze_news_by_id, get_news_analysis
+from app.services.hot_news_service import get_top_hot_news
+from app.services.news_analysis_service import (
+    analyze_news_by_id,
+    get_news_analysis,
+    analyze_hot_news,
+)
 
 # 创建路由对象
 router = APIRouter()
@@ -69,6 +74,21 @@ def get_news(
     return news_list
 
 
+@router.get("/news/hot")
+def get_hot_news(
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """获取热点新闻排行榜"""
+
+    news_list = get_top_hot_news(db, limit=limit)
+
+    return {
+        "total": len(news_list),
+        "items": news_list,
+    }
+
+
 @router.get("/news/{news_id}", response_model=NewsResponse)
 def get_news_by_id(news_id: int, db: Session = Depends(get_db)):
     # 在这里完成查询
@@ -109,6 +129,19 @@ def delete_news(news_id: int, db: Session = Depends(get_db)):
     db.delete(news_item)
     db.commit()
     return {"message": "News item deleted successfully"}
+
+
+@router.post("/news/hot/analyze")
+async def analyze_hot_news_api(
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    result = await analyze_hot_news(db, limit=limit)
+
+    return {
+        "message": "热点新闻分析完成",
+        **result,
+    }
 
 
 # 分析新闻

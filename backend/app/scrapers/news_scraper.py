@@ -1,10 +1,10 @@
 from scrapling.fetchers import Fetcher
 from urllib.parse import urljoin
-from app.services.news_cleaner import process_news, remove_duplicate_news
+from backend.app.processors.news_cleaner import process_news, remove_duplicate_news
 from app.database.connection import SessionLocal
 from app.services.news_service import create_news_if_not_exists
 from datetime import datetime
-from app.services.news_filter import filter_news
+from backend.app.processors.news_filter import filter_news
 
 # =========================
 # 1. 抓取新闻首页
