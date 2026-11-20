@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.schemas.news import NewsCreate, NewsResponse, NewsUpdate
 from app.models.news import News
 from app.database.dependencies import get_db
+from app.services.news_analysis_service import analyze_news_by_id, get_news_analysis
 
 # 创建路由对象
 router = APIRouter()
@@ -108,3 +109,36 @@ def delete_news(news_id: int, db: Session = Depends(get_db)):
     db.delete(news_item)
     db.commit()
     return {"message": "News item deleted successfully"}
+
+
+# 分析新闻
+@router.post("/news/{news_id}/analyze")
+def analyze_news_api(news_id: int, db: Session = Depends(get_db)):
+    record = analyze_news_by_id(db, news_id)
+
+    if not record:
+        raise HTTPException(status_code=404, detail="News item not found")
+
+    return {
+        "id": record.id,
+        "news_id": record.news_id,
+        "model_name": record.model_name,
+        "analyzed_at": record.analyzed_at,
+        "result": record.result,
+    }
+
+
+@router.get("/news/{news_id}/analysis")
+def get_news_analysis_api(news_id: int, db: Session = Depends(get_db)):
+    record = get_news_analysis(db, news_id)
+
+    if not record:
+        raise HTTPException(status_code=404, detail="News analysis not found")
+
+    return {
+        "id": record.id,
+        "news_id": record.news_id,
+        "model_name": record.model_name,
+        "analyzed_at": record.analyzed_at,
+        "result": record.result,
+    }
